@@ -1,7 +1,13 @@
 <?php
 set_time_limit(60); // na razie minuta
 
-require 'vendor/autoload.php';
+if ( $_SERVER['REMOTE_ADDR']=='127.0.0.1' ||  $_SERVER['REMOTE_ADDR']=='localhost') {
+	include 'config.db-local.inc.php';
+} else {
+	include 'config.db-ae.inc.php';
+}
+
+requi re 'vendor/autoload.php';
 require 'phpQuery.php';
 
 use GuzzleHttp\Client;

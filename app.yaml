@@ -1,0 +1,6 @@
+env_variables:
+  # Replace project, instance, database, user and password with the values obtained
+  # when configuring your Cloud SQL instance.
+  MYSQL_DSN: mysql:unix_socket=/cloudsql/blarides-149209:europe-west1:blarides;dbname=test
+  MYSQL_USER: test
+  MYSQL_PASSWORD: 'test'

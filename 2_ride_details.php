@@ -1,6 +1,7 @@
 <?php
 set_time_limit(60); // na razie minuta
 
+include 'config.db-local.inc.php';
 require 'vendor/autoload.php';
 require 'phpQuery.php';
 
