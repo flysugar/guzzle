@@ -1,4 +1,24 @@
 <?php
+require 'vendor/autoload.php';
+require 'phpQuery.php';
+
+use GuzzleHttp\Client;
+use GuzzleHttp\Psr7\Request;
+
+$client = new Client([
+	"base_uri"	=> "https://www.blablacar.pl/",
+	"verify" 	=> __DIR__ . "/cacert.pem",
+	"cookies" 	=> true,
+	"allow_redirects" => true,
+	"http_errors" => false,
+	"debug" => false,
+    "headers" => [
+    	'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.82 Safari/537.36',
+	 	'accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+		'accept-language' => 'pl-PL,pl;q=0.8,en-US;q=0.6,en;q=0.4'
+    ]
+]);
+
 // dodaje listę miast do bazy
 function db_store_cities($link='https://raw.githubusercontent.com/maqmaq/nosql/master/my.json') {
 	GLOBAL $client;
@@ -81,6 +101,7 @@ function db_update_ride_details($mysqli, $ride_link, $ride_id) {
 			printf("%d Ride updated.\n", $stmt_details->affected_rows);
 		} else {
 			print "problems with ride update statement..." . $stmt_details->error;
+			print_r($details);
 		}
 	} else {
 		echo "problem with link.\n";
@@ -107,6 +128,7 @@ function db_update_user_details($mysqli, $ride_link, $ride_id) {
 			print "DONE\n";
 		} else {
 			print "problems with user statement..." . $stmt_user->error;
+			print_r($details);
 		}
 	}
 }
@@ -125,35 +147,39 @@ function get_ride_details($ride_link) {
 		]
 	]);
 
-	$html = $r->getBody();
-	$trasa = phpQuery::newDocument($html);
-	$mapa = $trasa->find('div.RideMap');
-	$punkty = pq($mapa)->find('div.RideMap-canvas ul li');
+	if ( $r->getStatusCode()=='200' ) {
+		$html = $r->getBody();
+		$trasa = phpQuery::newDocument($html);
+		$mapa = $trasa->find('div.RideMap');
+		$punkty = pq($mapa)->find('div.RideMap-canvas ul li');
 
-	// szczegoly przejazdu: dlugosc, czas
-	$trasa_szczegoly_arr = trim(pq($mapa)->find('div.RideMap-info')->html());
-	$trasa_szczegoly = explode(',', $trasa_szczegoly_arr);
-	$details['ride_distance'] = intval(str_replace(' km', '', $trasa_szczegoly[0]));
-	$details['ride_duration'] = trim($trasa_szczegoly[1]); 
+		// szczegoly przejazdu: dlugosc, czas
+		$trasa_szczegoly_arr = trim(pq($mapa)->find('div.RideMap-info')->html());
+		$trasa_szczegoly = explode(',', $trasa_szczegoly_arr);
+		$details['ride_distance'] = intval(str_replace(' km', '', $trasa_szczegoly[0]));
+		$details['ride_duration'] = trim($trasa_szczegoly[1]);
 
-	// składowe ceny: dla kierowcy, dla serwisu
-	$cena = $trasa->find('div.Booking div.Block-section div.u-clearfix');
-	$cena_suma = pq($cena)->find('span:nth-child(2)');
-	$details['driver_fee'] = intval(str_replace(' zł', '', trim(pq($cena_suma)->elements[0]->nodeValue)));
-	$details['bla_fee'] = intval(str_replace(' zł', '', trim( pq($cena_suma)->elements[1]->nodeValue)));
+		// składowe ceny: dla kierowcy, dla serwisu
+		$cena = $trasa->find('div.Booking div.Block-section div.u-clearfix');
+		$cena_suma = pq($cena)->find('span:nth-child(2)');
+		$details['driver_fee'] = intval(str_replace(' zł', '', trim(pq($cena_suma)->elements[0]->nodeValue)));
+		$details['bla_fee'] = intval(str_replace(' zł', '', trim( pq($cena_suma)->elements[1]->nodeValue)));
 
-	$ride_stops = [];
-	foreach ( pq($punkty) as $punkt) {
-			$nazwa_punktu = trim(pq($punkt)->text());
-			$lat = pq($punkt)->attr('data-latitude');
-			$lon = pq($punkt)->attr('data-longitude');
+		$ride_stops = [];
+		foreach ( pq($punkty) as $punkt) {
+				$nazwa_punktu = trim(pq($punkt)->text());
+				$lat = pq($punkt)->attr('data-latitude');
+				$lon = pq($punkt)->attr('data-longitude');
 
-			$ride_stops[] = $nazwa_punktu.'|'.$lat.'|'.$lon;
+				$ride_stops[] = $nazwa_punktu.'|'.$lat.'|'.$lon;
+		}
+		$ride_stops_str = implode(';', $ride_stops);
+		$details['ride_stops'] = $ride_stops_str;
+
+		return $details;
+	} else {
+		return false;
 	}
-	$ride_stops_str = implode(';', $ride_stops);
-	$details['ride_stops'] = $ride_stops_str;
-
-	return $details;
 }
 
 // pobiera szczegóły profilu użytkownika
@@ -168,26 +194,35 @@ function get_user_details($ride_link) {
 		]
 	]);
 
-	$html = $r->getBody();
-	$trasa = phpQuery::newDocument($html);
-	$user_data = $trasa->find('div.ProfileCard');
+	if ( $r->getStatusCode()=='200' ) {
+		$html = $r->getBody();
+		$trasa = phpQuery::newDocument($html);
+		$user_data = $trasa->find('div.ProfileCard');
 
-	// link do profilu
-	$profile_card = pq($user_data)->find('h4.ProfileCard-info a');
-	$user_details['username'] = trim(pq($profile_card)->text());
-	$user_details['user_profile_link'] = trim(pq($profile_card)->attr('href'));
+		// link do profilu
+		$profile_card = pq($user_data)->find('h4.ProfileCard-info a');
+		$user_details['username'] = trim(pq($profile_card)->text());
+		$user_details['user_profile_link'] = trim(pq($profile_card)->attr('href'));
 
-	// srednia ocen
-	$oceny = pq($user_data)->find('div.ProfileCard-row p.ratings-container span');
-	$avg_rating = trim(pq($oceny)->elements[0]->nodeValue);
-	$avg_rating = explode('/', $avg_rating); // pozostawiamy tylko pierwsza czesc sredniej oceny
-	$avg_rating = str_replace(',', '.', $avg_rating[0]); // zamieniamy przecinek na kropke
-	$user_details['user_avg_rating'] = $avg_rating;
+		// srednia ocen
+		$oceny = pq($user_data)->find('div.ProfileCard-row p.ratings-container span');
+		$avg_rating = 0;
+		$num_ratings = 0;
+		if ( count($oceny)>0 ) {
+			$avg_rating = trim(pq($oceny)->elements[0]->nodeValue);
+			$avg_rating = explode('/', $avg_rating); // pozostawiamy tylko pierwsza czesc sredniej oceny
+			$avg_rating = str_replace(',', '.', $avg_rating[0]); // zamieniamy przecinek na kropke
+			$num_ratings = filter_var(str_replace('-','',trim(pq($oceny)->elements[1]->nodeValue)), FILTER_SANITIZE_NUMBER_INT);
+		}
 
-	// ilosc ocen
-	$user_details['user_num_ratings'] =  filter_var(str_replace('-','',trim(pq($oceny)->elements[1]->nodeValue)), FILTER_SANITIZE_NUMBER_INT);
+		$user_details['user_avg_rating'] = $avg_rating;
+		// ilosc ocen
+		$user_details['user_num_ratings'] =  $num_ratings;
 
-	return $user_details;
+		return $user_details;
+	} else {
+		return false;
+	}
 }
 
 // zwraca ilość stron z wynikami wyszukiwania dla danego zapytani
