@@ -60,11 +60,13 @@ jesli zebralismy 100 distinct(city_name) z danego dnia - kasujemy tablicę i sta
 			if ( isset($_REQUEST['no_of_cities']) && intval($_REQUEST['no_of_cities'])>1 && intval($_REQUEST['no_of_cities'])%2==0) {
 				$no_of_cities = intval($_REQUEST['no_of_cities']);
 			}
+
 			// dzisiaj
 			$data = $data_obj->format("d/m/Y");
 			$sql_data = $data_obj->format("Y-m-d");
 
 			$sql = "SELECT count(distinct(city_name)) FROM cron_cities WHERE cron_date='$sql_data'";
+			$row = $mysqli->query($sql)->fetch_row();
 			if ($row[0]>=100) {
 				// start again when 100 cities have been indexed for given day
 				$mysqli->query("DELETE FROM cron_cities WHERE cron_date='$sql_data'");
@@ -79,7 +81,7 @@ jesli zebralismy 100 distinct(city_name) z danego dnia - kasujemy tablicę i sta
 			print "<b>top cities</b>";
 			print_r($top_cities);
 
-			syslog(LOG_INFO, "fetching rides for $data... cities" . implode(',', $top_cities));
+			syslog(LOG_INFO, "fetching rides for $data");
 
 			for ($i=0;$i<count($top_cities);$i++) {
 				$city_from = $top_cities[$i]['name'];

@@ -5,9 +5,9 @@ require 'phpQuery.php';
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 
+// 	"verify" 	=> __DIR__ . "/cacert.pem",
 $client = new Client([
 	"base_uri"	=> "https://www.blablacar.pl/",
-	"verify" 	=> __DIR__ . "/cacert.pem",
 	"cookies" 	=> true,
 	"allow_redirects" => true,
 	"http_errors" => false,
@@ -56,8 +56,8 @@ function db_store_rides($mysqli, $city_from, $city_to, $data, $limit=50) {
 			} else {
 				print "problems with add statement..." . $stmt_add->error;
 			}
-			ob_flush();
-        	flush();
+			@ob_flush();
+        	@flush();
 		}
 		print count($rides) . " added.\n";
 	} else {
