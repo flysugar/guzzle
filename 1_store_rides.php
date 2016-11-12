@@ -26,6 +26,15 @@ $mysqli->set_charset("utf8");
 // SQL na App Engine
 // include 'config.db-ae.inc.php';
 include 'bla.inc.php';
+
+$no_of_cities = 2;
+if (
+		$_SERVER['REQUEST_METHOD']=='POST' &&
+		intval($_POST['no_of_cities'])>1 &&
+		intval($_POST['no_of_cities']) % 2 == 0
+	) {
+	$no_of_cities = intval($_POST['no_of_cities']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,76 +48,36 @@ include 'bla.inc.php';
 show_some_data($mysqli);
 ?>
 
+<form method="POST">
+	No of top cities (even, min: 2): <input type="text" value="<?= $no_of_cities ?>" name="no_of_cities" /> <input type="submit" value="get" />
+</form>
+
 <pre>
 <?php
-function db_store_rides($mysqli, $city_from, $city_to, $data, $limit=50) {
-	// $stmt_del = $mysqli->prepare("DELETE FROM bla_rides WHERE ride_id=?");
-	$stmt_add = $mysqli->prepare("INSERT IGNORE INTO bla_rides (ride_id, ride_from, ride_to, ride_date, username, ride_link, user_age, price_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-	// get first 50 rides sorted by price
-	if ( $rides = get_rides($city_from, $city_to, $data, $limit) ) {
-		// print_r($rides);
+if ( $_SERVER['REQUEST_METHOD']=='POST' && isset($no_of_cities) ) {
+	$top_cities = db_get_cities($mysqli, $no_of_cities);
+	$data_obj = new DateTime( date("Y-m-d") );
 
-		foreach ($rides as $ride) {
-			// print_r($ride);
-			print "Adding " . implode('|', $ride) . '...';
-			// $stmt_del->bind_param('i', $ride['ride_id']);
-			// $stmt_del->execute();
+	// dzisiaj
+	$data = $data_obj->format("d/m/Y");
 
-			// print $ride['price_type'];
-			// exit;
-			// dla MySQL musimy zrobic RRRR-MM-DD
-			$ride_date = explode('/', $ride['ride_date']);
-			$ride_date = implode('-', array($ride_date[2], $ride_date[1], $ride_date[0]));
+	// jutro
+	// $data_jutro = $data_obj->modify("+1 day")->format("d/m/Y");
 
-			$stmt_add->bind_param('isssssis',
-							$ride['ride_id'],
-							$ride['ride_from'],
-							$ride['ride_to'],
-							$ride_date,
-							$ride['username'],
-							$ride['link'],
-							$ride['age'],
-							$ride['price_type']
-						);
+	print "fetching rides for $data... cities:";
+	print_r($top_cities);
 
-			if ( $stmt_add->execute() ) {
-				printf("%d Row inserted.\n", $stmt_add->affected_rows);
-				print "DONE\n";
-			} else {
-				print "problems with add statement..." . $stmt_add->error;
-			}
-			ob_flush();
-        	flush();
+	for ($i=0;$i<count($top_cities);$i++) {
+		$city_from = $top_cities[$i]['name'];
+		for ($j=0;$j<count($top_cities);$j++) {
+			$city_to = $top_cities[$j]['name'];
+			if ($city_from==$city_to) continue;
+			print "FROM $city_from to $city_to: ";
+
+			db_store_rides($mysqli, $city_from, $city_to, $data);
 		}
-		print count($rides) . " added.\n";
 	}
 }
-
-$no_of_cities = 2;
-
-$top_cities = db_get_cities($no_of_cities);
-$data_obj = new DateTime( date("Y-m-d") );
-
-// dzisiaj
-$data = $data_obj->format("d/m/Y");
-
-// jutro
-// $data_jutro = $data_obj->modify("+1 day")->format("d/m/Y");
-
-print "fetching rides for $data... cities:";
-print_r($top_cities);
-
-for ($i=0;$i<count($top_cities);$i++) {
-	$city_from = $top_cities[$i]['name'];
-	for ($j=0;$j<count($top_cities);$j++) {
-		$city_to = $top_cities[$j]['name'];
-		if ($city_from==$city_to) continue;
-		print "FROM $city_from to $city_to: ";
-
-		db_store_rides($mysqli, $city_from, $city_to, $data);
-	}
-}
-exit;
 ?>
 </pre>
 </html>

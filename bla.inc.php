@@ -19,6 +19,50 @@ $client = new Client([
     ]
 ]);
 
+// skladuje ogolne informacje o przejazdach dla podanej trasy i daty
+function db_store_rides($mysqli, $city_from, $city_to, $data, $limit=50) {
+	// $stmt_del = $mysqli->prepare("DELETE FROM bla_rides WHERE ride_id=?");
+	$stmt_add = $mysqli->prepare("INSERT IGNORE INTO bla_rides (ride_id, ride_from, ride_to, ride_date, username, ride_link, user_age, price_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+	// get first 50 rides sorted by price
+	if ( $rides = get_rides($city_from, $city_to, $data, $limit) ) {
+		// print_r($rides);
+
+		foreach ($rides as $ride) {
+			// print_r($ride);
+			print "Adding " . implode('|', $ride) . '...';
+			// $stmt_del->bind_param('i', $ride['ride_id']);
+			// $stmt_del->execute();
+
+			// print $ride['price_type'];
+			// exit;
+			// dla MySQL musimy zrobic RRRR-MM-DD
+			$ride_date = explode('/', $ride['ride_date']);
+			$ride_date = implode('-', array($ride_date[2], $ride_date[1], $ride_date[0]));
+
+			$stmt_add->bind_param('isssssis',
+							$ride['ride_id'],
+							$ride['ride_from'],
+							$ride['ride_to'],
+							$ride_date,
+							$ride['username'],
+							$ride['link'],
+							$ride['age'],
+							$ride['price_type']
+						);
+
+			if ( $stmt_add->execute() ) {
+				printf("%d Row inserted.\n", $stmt_add->affected_rows);
+				print "DONE\n";
+			} else {
+				print "problems with add statement..." . $stmt_add->error;
+			}
+			ob_flush();
+        	flush();
+		}
+		print count($rides) . " added.\n";
+	}
+}
+
 function show_some_data($_db) {
 	$sql = "SELECT ride_id, ride_date, ride_from, ride_to, ride_distance, ride_duration, driver_fee, bla_fee, ride_link FROM bla_rides ORDER BY ride_date DESC, ride_distance DESC, driver_fee DESC LIMIT 20";
 	$res = $_db->query($sql);
@@ -51,18 +95,18 @@ function show_some_data($_db) {
 }
 
 // dodaje listę miast do bazy
-function db_store_cities($link='https://raw.githubusercontent.com/maqmaq/nosql/master/my.json') {
+function db_store_cities($_db, $link='https://raw.githubusercontent.com/maqmaq/nosql/master/my.json') {
 	GLOBAL $client;
-	$mysqli = new mysqli("127.0.0.1", "test", "test", "test");
-	$table = 'bla_cities';
+	// $mysqli = new mysqli("127.0.0.1", "test", "test", "test");
 
-	/* check connection */
-	if (mysqli_connect_errno()) {
-	    printf("Connect failed: %s\n", mysqli_connect_error());
-	    exit();
-	}
-	$mysqli->set_charset("utf8");
-	$mysqli->query("DELETE FROM $table");
+	// /* check connection */
+	// if (mysqli_connect_errno()) {
+	//     printf("Connect failed: %s\n", mysqli_connect_error());
+	//     exit();
+	// }
+	// $mysqli->set_charset("utf8");
+	$table = 'bla_cities';
+	$_db->query("DELETE FROM $table");
 
 	$r = $client->get('https://raw.githubusercontent.com/maqmaq/nosql/master/my.json');
 	$json = $r->getBody();
@@ -71,40 +115,30 @@ function db_store_cities($link='https://raw.githubusercontent.com/maqmaq/nosql/m
 	foreach ($json_decoded as $city) {
 		print "Importing ".$city->nazwa."...";
 		$sql = 'INSERT INTO '.$table.' (name, lat, lon, population, link) VALUES (';
-		$sql .= '"'.$mysqli->real_escape_string(trim($city->nazwa)).'", ';
-		$sql .= '"'.$mysqli->real_escape_string(trim($city->szerokosc)).'", ';
-		$sql .= '"'.$mysqli->real_escape_string(trim($city->dlugosc)).'", ';
-		$sql .= intval($mysqli->real_escape_string(trim($city->ludnosc))).', ';
-		$sql .= '"'.$mysqli->real_escape_string(trim($city->link)).'")';
+		$sql .= '"'.$_db->real_escape_string(trim($city->nazwa)).'", ';
+		$sql .= '"'.$_db->real_escape_string(trim($city->szerokosc)).'", ';
+		$sql .= '"'.$_db->real_escape_string(trim($city->dlugosc)).'", ';
+		$sql .= intval($_db->real_escape_string(trim($city->ludnosc))).', ';
+		$sql .= '"'.$_db->real_escape_string(trim($city->link)).'")';
 
 		// debug: print $sql . "\n";
-		if ( !$mysqli->query($sql) ) {
-			echo "Query failed: (" . $mysqli->errno . ") " . $mysqli->error;
+		if ( !$_db->query($sql) ) {
+			echo "Query failed: (" . $_db->errno . ") " . $_db->error;
 		}
 		print "done.\n";
 	}
 	echo "Imported " . count($json_decoded) . " cities.";
-	$mysqli->close();
 }
 
 // Zwraca listę miast
 // limit - ilość zwracanych miast
 // min_population - minimalna ilość mieszkańców
-function db_get_cities($limit=20, $min_population=50000) {
-	$mysqli = new mysqli("127.0.0.1", "test", "test", "test");
+function db_get_cities($_db, $limit=20, $min_population=50000) {
 	$table = 'bla_cities';
 
-	/* check connection */
-	if (mysqli_connect_errno()) {
-	    printf("Connect failed: %s\n", mysqli_connect_error());
-	    exit();
-	}
-	$mysqli->set_charset("utf8");
-
 	$sql = "SELECT name FROM bla_cities WHERE population >= $min_population ORDER BY population DESC LIMIT $limit";
-	if ( $res = $mysqli->query($sql) ) {
+	if ( $res = $_db->query($sql) ) {
 		$ret = $res->fetch_all(MYSQLI_ASSOC);
-		$mysqli->close();
 		return $ret;
 	} else {
 		print "SQL error: $sql";

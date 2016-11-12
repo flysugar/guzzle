@@ -2,6 +2,9 @@ runtime: php55
 api_version: 1
 
 handlers:
+- url: /cron
+  script: cron.php
+
 - url: /start
   script: 1_store_rides.php
 
@@ -37,3 +40,4 @@ env_variables:
   MYSQL_DSN: mysql:unix_socket=/cloudsql/blarides-149209:europe-west1:blarides;dbname=test
   MYSQL_USER: test
   MYSQL_PASSWORD: 'test'
+
