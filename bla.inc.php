@@ -60,6 +60,8 @@ function db_store_rides($mysqli, $city_from, $city_to, $data, $limit=50) {
         	flush();
 		}
 		print count($rides) . " added.\n";
+	} else {
+		return false;
 	}
 }
 
@@ -133,10 +135,12 @@ function db_store_cities($_db, $link='https://raw.githubusercontent.com/maqmaq/n
 // Zwraca listę miast
 // limit - ilość zwracanych miast
 // min_population - minimalna ilość mieszkańców
-function db_get_cities($_db, $limit=20, $min_population=50000) {
+function db_get_cities($_db, $limit=20, $omit_first=0, $min_population=50000) {
 	$table = 'bla_cities';
 
-	$sql = "SELECT name FROM bla_cities WHERE population >= $min_population ORDER BY population DESC LIMIT $limit";
+	// $sql = "SELECT name FROM bla_cities WHERE population >= $min_population ORDER BY population DESC LIMIT $omit_first, $limit";
+	$sql = "SELECT name FROM bla_cities ORDER BY population DESC LIMIT $omit_first, $limit";
+
 	if ( $res = $_db->query($sql) ) {
 		$ret = $res->fetch_all(MYSQLI_ASSOC);
 		return $ret;

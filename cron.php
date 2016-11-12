@@ -39,13 +39,45 @@ $data_obj = new DateTime( date("Y-m-d") );
 
 switch ($job_id) {
 	case 1:
-			$no_of_cities = 100;
+			/*
+Wybierzmy x pierwszych miast:
+SELECT name, population FROM bla_cities ORDER BY population DESC LIMIT 0,10
+
+INSERT INTO cron_cities (city_name, cron_date) VALUES ('Warszawa', '2016-11-11')
+
+potem przy kolejnym cron robimy
+
+SELECT count(distinct(city_name)) FROM cron_cities WHERE cron_date='2016-11-11'
+
+i potem robimy
+SELECT name, population FROM bla_cities ORDER BY population DESC LIMIT _X_,10
+
+jesli zebralismy 100 distinct(city_name) z danego dnia - kasujemy tablicę i startujemy od zera
+
+
+			*/
+			$no_of_cities = 6;
 			if ( isset($_REQUEST['no_of_cities']) && intval($_REQUEST['no_of_cities'])>1 && intval($_REQUEST['no_of_cities'])%2==0) {
 				$no_of_cities = intval($_REQUEST['no_of_cities']);
 			}
-			$top_cities = db_get_cities($mysqli, $no_of_cities);
 			// dzisiaj
 			$data = $data_obj->format("d/m/Y");
+			$sql_data = $data_obj->format("Y-m-d");
+
+			$sql = "SELECT count(distinct(city_name)) FROM cron_cities WHERE cron_date='$sql_data'";
+			if ($row[0]>=100) {
+				// start again when 100 cities have been indexed for given day
+				$mysqli->query("DELETE FROM cron_cities WHERE cron_date='$sql_data'");
+			}
+
+			$top_cities_sql = "select bla_cities.name as name FROM bla_cities WHERE bla_cities.name NOT IN (select distinct(city_name) from cron_cities WHERE cron_date='$sql_data') order by population DESC limit $no_of_cities";
+			print $top_cities_sql;
+			$top_cities = $mysqli->query($top_cities_sql)->fetch_all(MYSQLI_ASSOC);
+
+			// print "db_get_cities(\$mysqli, $no_of_cities, $start_from);\n";
+			// $top_cities = db_get_cities($mysqli, $no_of_cities, $start_from);
+			print "<b>top cities</b>";
+			print_r($top_cities);
 
 			syslog(LOG_INFO, "fetching rides for $data... cities" . implode(',', $top_cities));
 
@@ -56,8 +88,13 @@ switch ($job_id) {
 					if ($city_from==$city_to) continue;
 					syslog(LOG_INFO, "FROM $city_from to $city_to: ");
 
-					db_store_rides($mysqli, $city_from, $city_to, $data);
+					if ( db_store_rides($mysqli, $city_from, $city_to, $data) ) {
+						$sql = "INSERT INTO cron_cities (city_name, cron_date) VALUES ('$city_to', '$sql_data')";
+						$mysqli->query($sql);
+					}
 				}
+				$sql = "INSERT INTO cron_cities (city_name, cron_date) VALUES ('$city_from', '$sql_data')";
+				$mysqli->query($sql);
 			}
 			break;
 	case 2:
