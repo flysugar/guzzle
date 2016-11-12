@@ -1,12 +1,15 @@
 cron:
 - description: get general rides for top 100 cities
-  url: /cron?job_id=1&no_of_cities=2
-  schedule: every 15 minutes
+  url: /cron?job_id=1&no_of_cities=100
+  target: blarides
+  schedule: every 60 minutes
 
 - description: get ride details for new rides
   url: /cron?job_id=2
-  schedule: every 25 minutes
+  target: blarides
+  schedule: every 70 minutes
 
 - description: get user details for new rides
   url: /cron?job_id=3
-  schedule: every 29 minutes
+  target: blarides
+  schedule: every 80 minutes
