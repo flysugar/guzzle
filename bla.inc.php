@@ -19,6 +19,37 @@ $client = new Client([
     ]
 ]);
 
+function show_some_data($_db) {
+	$sql = "SELECT ride_id, ride_date, ride_from, ride_to, ride_distance, ride_duration, driver_fee, bla_fee, ride_link FROM bla_rides ORDER BY ride_date DESC, ride_distance DESC, driver_fee DESC LIMIT 20";
+	$res = $_db->query($sql);
+	print "<table cellspacing='2' cellpadding='2' border='1'>\n";
+	print "<tr>";
+	print "<th>ride_id</th>\n";
+	print "<th>ride_date</th>\n";
+	print "<th>ride_from</th>\n";
+	print "<th>ride_to</th>\n";
+	print "<th>ride_distance</th>\n";
+	print "<th>ride_duration</th>\n";
+	print "<th>driver_fee</th>\n";
+	print "<th>bla_fee</th>\n";
+	print "<th>ride_link</th>\n";
+	print "</tr>\n";	
+	while ($row = $res->fetch_assoc()) {
+		print "<tr>";
+		print "<td>{$row['ride_id']}</td>\n";
+		print "<td>{$row['ride_date']}</td>\n";
+		print "<td>{$row['ride_from']}</td>\n";
+		print "<td>{$row['ride_to']}</td>\n";
+		print "<td>{$row['ride_distance']} km</td>\n";
+		print "<td>{$row['ride_duration']}</td>\n";
+		print "<td>{$row['driver_fee']} zł</td>\n";
+		print "<td>{$row['bla_fee']} zł</td>\n";
+		print "<td><a href='https://blablacar.pl{$row['ride_link']}' target='_blank'>{$row['ride_link']}</a></td>\n";
+		print "</tr>\n";		
+	}
+	print "</table>";
+}
+
 // dodaje listę miast do bazy
 function db_store_cities($link='https://raw.githubusercontent.com/maqmaq/nosql/master/my.json') {
 	GLOBAL $client;

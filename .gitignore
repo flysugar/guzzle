@@ -1,0 +1,10 @@
+*.sql
+app.yaml.bck
+composer.lock
+config.db-local.inc.php
+gt.php
+gt2.php
+obrazek.png
+phpQuery/*
+phpquery-master/*
+terminal.glue

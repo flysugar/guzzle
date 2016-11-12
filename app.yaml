@@ -2,15 +2,34 @@ runtime: php55
 api_version: 1
 
 handlers:
-# Serve images as static resources.
-- url: /(.+\.(gif|png|jpg))$
-  static_files: \1
-  upload: .+\.(gif|png|jpg)$
-  application_readable: true
+- url: /start
+  script: 1_store_rides.php
+
+- url: /1
+  script: 1_store_rides.php
+
+- url: /2
+  script: 2_ride_details.php
+
+- url: /3
+  script: 3_user_details.php
 
 # Serve php scripts.
 - url: /(.+\.php)$
   script: \1
+
+- url: /vendor/(.+\.php)$
+  script: vendor/\1
+
+# Serve images as static resources.
+- url: /(.+\.(gif|png|jpg|html))$
+  static_files: \1
+  upload: .+\.(gif|png|jpg|html)$
+  application_readable: true
+
+- url: /
+  static_files: index.html
+  upload: index.html
 
 env_variables:
   # Replace project, instance, database, user and password with the values obtained
