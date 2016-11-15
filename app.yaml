@@ -2,6 +2,9 @@ runtime: php55
 api_version: 1
 
 handlers:
+- url: /graph
+  script: graph.php
+
 - url: /cron
   script: cron.php
 
